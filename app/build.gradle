@@ -120,7 +120,7 @@ def flavors() {
 
         //从jenkins读是否debug
         boolean debugVersion = true
-        debugVersion = Boolean.parseBoolean(System.getenv("Debug_Version"))
+        debugVersion = Boolean.parseBoolean(System.getenv("BUILD_TYPE"))
         println "# 环境变量 构建类型 Debug_Version is ${debugVersion}"
         android.variantFilter { varian ->
             if (debugVersion) {
