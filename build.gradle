@@ -21,3 +21,6 @@ allprojects {
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
+
+//导入一个新的gradle文件
+apply from: 'build2.gradle'

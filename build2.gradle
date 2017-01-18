@@ -1,0 +1,115 @@
+println '***************根项目导入配置项**************'
+
+//获得版本编号
+def getVersionCode = { ->
+    def var1 = System.getenv("VERSION_CODE")
+    if (var1) {
+        return Integer.parseInt(var1)
+    }
+    return null
+}
+
+//获得版本名称
+def getVersionName = { ->
+    def var1 = System.getenv("VERSION_NAME")
+    if (var1) {
+        return var1;
+    }
+    return null
+}
+
+def getBranchName = { ->
+    def branchName = System.getenv("Branch_Name")
+    if (branchName) {
+        branchName = branchName.substring(0, branchName.indexOf("/"))
+        return branchName
+    }
+    return null
+}
+
+def getPrefixName = { ->
+    def var1 = System.getenv("Prefix_Name")
+    if (var1) {
+        return var1
+    }
+    return 'TianFei'
+}
+
+//构建类型
+def getPara_BUILD_TYPE = { ->
+    def var1 = System.getenv("BUILD_TYPE")
+    if (var1) {
+        return var1
+    }
+    return null
+}
+
+//获得 是否 内网
+def getPara_PAY_HOST_INTERNAL = {
+    def var1 = System.getenv('PAY_HOST_INTERNAL')
+    if (var1) {
+        return Boolean.parseBoolean(var1)
+    }
+    return false
+}
+
+//在本project中定义字段，可以使用project.xxx调用
+ext {
+    //版本号
+    VERSION_CODE = getVersionCode()
+    //版本名字
+    VERSION_NAME = getVersionName()
+    //分支名字
+    BRANCH_NAME = getBranchName()
+    //修改apk名字前缀
+    PREFIX_NAME = getPrefixName()
+    //构建类型，debug
+    BUILD_TYPE = getPara_BUILD_TYPE()
+    //是否为内网
+    PAY_HOST_INTERNAL = getPara_PAY_HOST_INTERNAL()
+    //是否使用jenkins打包
+    IS_JENKINS = !(BRANCH_NAME == null || "".equals(BRANCH_NAME));
+}
+
+//从localProperty中读取个人配置的参数
+def readLocalProperty(String key) {
+    Properties properties = new Properties()
+    File localPropertyFile = project.rootProject.file('local.properties');
+    if (localPropertyFile.exists()) {
+        properties.load(localPropertyFile.newDataInputStream())
+        def var1 = properties.getProperty(key)
+//        println "#从local.properties读取到: " + var1
+        return var1;
+    }
+}
+
+println "#读取环境参数,是否处于Jenkins编译环境： ${IS_JENKINS}"
+println "#读取环境参数,PREFIX_NAME is ${PREFIX_NAME}"
+println "#读取环境参数,BRANCH_NAME is ${BRANCH_NAME}"
+println '#读取环境参数,版本号(编号)：' + project.VERSION_CODE
+println '#读取环境参数,版本号(名称)：' + project.VERSION_NAME
+println '#读取环境参数,指定构建类型 BUILD_TYPE：' + project.BUILD_TYPE
+println '#读取环境参数,是否使用内网测试服务器：' + project.PAY_HOST_INTERNAL
+
+//不是jenins环境，是本地环境时的一些操作
+if (!project.IS_JENKINS) {
+    println "********************* 读取本地配置 start *************************"
+    //读取存储在 local.properties的 参数配置。如果使用这个，
+    //你需要在你的 local.properties的 添加：obd.sdk.source.dir=/Users/zhangyunfei/git/dev_sdk/java/core
+    rootProject.ext.obd_sdk_source_dir = readLocalProperty('obd.sdk.source.dir')
+    println "#读取到图吧obd的sdk的源代码路径: " + rootProject.ext.obd_sdk_source_dir
+
+}
+
+//读取 local.properties 判断是否处于开发模式
+String str_IS_ON_DEVELOP = readLocalProperty('IS_ON_DEVELOP');
+rootProject.ext.IS_ON_DEVELOP = str_IS_ON_DEVELOP == null ? false : Boolean.parseBoolean(str_IS_ON_DEVELOP);
+
+println '#读取环境参数,IS_ON_DEVELOP: ' + IS_ON_DEVELOP;
+
+//调试时每次都要输入账户密码，我做了简单配置 AUTO_LOGIN_BY_ZYF 写携带账户密码
+String str_AUTO_LOGIN_BY_ZYF = readLocalProperty('AUTO_LOGIN_BY_ZYF');
+rootProject.ext.AUTO_LOGIN_BY_ZYF = str_AUTO_LOGIN_BY_ZYF
+println '#读取环境参数,自动输入账户密码: ' + rootProject.ext.AUTO_LOGIN_BY_ZYF;
+
+println "********************* 读取本地配置 end ***************************"

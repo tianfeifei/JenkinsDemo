@@ -1,5 +1,7 @@
 apply plugin: 'com.android.application'
 
+
+
 android {
     compileSdkVersion 23
     buildToolsVersion '23.0.1'
@@ -7,20 +9,181 @@ android {
         applicationId "com.example.tianye.jenkinsdemo"
         minSdkVersion 15
         targetSdkVersion 22
-        versionCode 1
-        versionName "1.0"
+        //project.VERSION_CODE，project.VERSION_NAME是从jenkins上取的；
+        versionCode project.VERSION_CODE == null ? 1 : project.VERSION_CODE
+        versionName project.VERSION_NAME == null ? "3.9.3" : project.VERSION_NAME
+
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        //默认使用umeng渠道，替换掉UMENG占位符
+        manifestPlaceholders = [UMENG_CHANNEL_VALUE: 'umeng']
+
+        resValue "string", "main_title", "name"       //    代码内调用方式:  R.string maintitle
+        buildConfigField "boolean", "IS_LOG", "true"    //  代码内调用方式:  BuildConfig.IS_LOG
+    }
+    signingConfigs {
+        debug {
+            // No resourse
+        }
+        release {
+            storeFile file("../key/mapbar2009.keystore")
+            storePassword "mapbar2009"
+            keyAlias "mapbar2009.keystore"
+            keyPassword "mapbar2009"
+        }
     }
     buildTypes {
         release {
-            minifyEnabled false
+            debuggable false
+            minifyEnabled false// 是否混淆
+            zipAlignEnabled true
+            // 移除无用的resource文件
+            //shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+            //自定义字段，从build2.gradle中读取，代码内调用方式:  BuildConfig.PAY_HOST_INTERNAL
+            buildConfigField("Boolean", "PAY_HOST_INTERNAL", "${PAY_HOST_INTERNAL}")
+            buildConfigField "boolean", "LOG_DEBUG", "false"
+            buildConfigField "String", "Branch_Name", "\"${BRANCH_NAME}\""
+        }
+        debug {
+            debuggable true
+            minifyEnabled false
+            zipAlignEnabled true
+            shrinkResources false
+//            versionNameSuffix "-debug"
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.debug
+            buildConfigField("Boolean", "PAY_HOST_INTERNAL", "false")
+            buildConfigField "boolean", "LOG_DEBUG", "true"
+            buildConfigField "String", "AUTO_LOGIN_BY_ZYF", "\"${AUTO_LOGIN_BY_ZYF}\""
+            buildConfigField "String", "Branch_Name", "\"${BRANCH_NAME}\""
         }
     }
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+    // 多渠道打包
+    flavors()
+    sourceSets {
+        main {
+            //根据自定义字段，可以选择加载的资源
+            if (IS_ON_DEVELOP)
+                manifest.srcFile 'src/main/AndroidManifest_dev.xml'
+            else
+                manifest.srcFile 'src/main/AndroidManifest.xml'
+            java.srcDirs = ['src/main/java']
+            aidl.srcDirs = ['src/main/java']
+            renderscript.srcDirs = ['src/main/java']
+            res.srcDirs = ['src/main/res']
+            assets.srcDirs = ['assets']
+            jniLibs.srcDirs = ['libs']
+        }
+
+        // Move the tests to tests/java, tests/res, etc...
+        instrumentTest.setRoot('tests')
+        debug.setRoot('build-types/debug')
+        release.setRoot('build-types/release')
+    }
+    dexOptions {    // 打开dex增量编译
+        incremental true
+//        jumboMode true
+        preDexLibraries true
+    }
+
+    configurations {
+        all*.exclude group: 'com.android.support', module: 'support-annotations'
+    }
+}
+
+//多渠道打包
+def flavors() {
+    //从jenkins读取环境变量Channels值
+    def channels = System.getenv("Channels")
+    if (channels) {
+        println "#环境变量 Channels = ${channels}"
+        //jenkins配置的渠道名字要以“；”隔开，结尾不要有标点
+        channels.toString().tokenize(';').each { channelItem ->
+            println "==================== Channel Start ====================="
+            println "# channelItem is ${channelItem}"
+            //动态创建productFlavor
+            android.productFlavors.create(channelItem, {
+                // 替换渠道号
+                manifestPlaceholders = [UMENG_CHANNEL_VALUE: channelItem]
+                println "# create productFlavors [${channelItem}] success"
+            })
+            println "==================== Channel End ====================="
+        }
+//        def log = project.logger
+
+        //从jenkins读是否debug
+        boolean debugVersion = true
+        debugVersion = Boolean.parseBoolean(System.getenv("Debug_Version"))
+        println "# 环境变量 构建类型 Debug_Version is ${debugVersion}"
+        android.variantFilter { varian ->
+            if (debugVersion) {
+                if (varian.buildType.name.equals('release')) {
+                    varian.setIgnore(true)
+                }
+            } else {
+                if (varian.buildType.name.equals('debug')) {
+                    varian.setIgnore(true)
+                }
+            }
+        }
+
+    }
+
 }
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
     compile 'com.android.support:appcompat-v7:23.0.1'
     testCompile 'junit:junit:4.12'
+}
+
+android.applicationVariants.all { variant ->
+
+    // 将打包的目录指定出去，对齐生成的apk
+    variant.outputs.each { output ->
+
+        def outputFile = output.outputFile
+        if (outputFile != null && outputFile.name.endsWith('.apk')) {
+            //配置生成apk位置
+//            String outPath = System.getProperty('user.dir') + File.separator + 'apk'
+            String outPath = System.getProperty('user.dir') + File.separator + 'app' + File.separator + "build/outputs/apk"
+
+            StringBuilder fileNameBuilder = new StringBuilder()
+            fileNameBuilder.append(project.PREFIX_NAME).append('_')
+            if (project.BRANCH_NAME) {
+                fileNameBuilder.append(project.BRANCH_NAME).append('_')
+            }
+            /*if (project.GET_VERSION) {
+                fileNameBuilder.append(project.GET_VERSION).append('_')
+            }*/
+            if (variant.flavorName) {
+                fileNameBuilder.append(variant.flavorName).append('_')
+            }
+            if (variant.buildType.name) {
+                fileNameBuilder.append(variant.buildType.name).append('_')
+            }
+            fileNameBuilder.append(buildTime()).append('.apk')
+            File dir = file(outPath)
+            if (!dir.exists()) {
+                dir.mkdirs();
+            } else {
+                // 如果不需要编译时删除掉历史apk，注释掉以下代码即可
+                dir.list().each { fileName ->
+                    file(outPath + File.separator + fileName).delete()
+                }
+            }
+            output.outputFile = new File(dir, fileNameBuilder.toString())
+            println "# 最终产出物文件名：" + output.outputFile
+        }
+    }
+
+}
+
+def buildTime() {
+    return new Date().format('yyyyMMdd_HHmm')
 }
