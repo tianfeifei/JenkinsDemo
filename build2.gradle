@@ -32,7 +32,7 @@ def getPrefixName = { ->
     if (var1) {
         return var1
     }
-    return 'TianFei'
+    return '默认值'
 }
 
 //构建类型
