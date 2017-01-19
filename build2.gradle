@@ -21,7 +21,7 @@ def getVersionName = { ->
 def getBranchName = { ->
     def branchName = System.getenv("BRANCH_NAME")
     if (branchName) {
-        branchName = branchName.substring((branchName.indexOf("/")+1),(branchName.length()-1))
+        branchName = branchName.substring((branchName.indexOf("/")+1),branchName.length())
         return branchName
     }
     return null
