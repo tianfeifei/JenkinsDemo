@@ -43,7 +43,7 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release
             //自定义字段，从build2.gradle中读取，代码内调用方式:  BuildConfig.PAY_HOST_INTERNAL
-            buildConfigField("Boolean", "PAY_HOST_INTERNAL", "${PAY_HOST_INTERNAL}")
+            buildConfigField("boolean", "PAY_HOST_INTERNAL", "${PAY_HOST_INTERNAL}")
             buildConfigField "boolean", "LOG_DEBUG", "false"
             buildConfigField "String", "Branch_Name", "\"${BRANCH_NAME}\""
         }
