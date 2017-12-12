@@ -41,7 +41,7 @@ def getPara_BUILD_TYPE = { ->
     if (var1) {
         return var1
     }
-    return true
+    return false
 }
 
 //获得 是否 内网
